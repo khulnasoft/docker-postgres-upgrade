@@ -1,0 +1,29 @@
+FROM {{ .from }}
+
+RUN sed -i 's/$/ {{ .old }}/' /etc/apt/sources.list.d/pgdg.list
+
+RUN set -eux; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		postgresql-{{ .old }}={{ .version | @sh }} \
+	; \
+	rm -rf /var/lib/apt/lists/*
+
+ENV PGBINOLD /usr/lib/postgresql/{{ .old }}/bin
+ENV PGBINNEW /usr/lib/postgresql/{{ .new }}/bin
+
+ENV PGDATAOLD /var/lib/postgresql/{{ .old }}/data
+ENV PGDATANEW /var/lib/postgresql/{{ .new }}/data
+
+RUN set -eux; \
+	mkdir -p "$PGDATAOLD" "$PGDATANEW"; \
+	chown -R postgres:postgres /var/lib/postgresql
+
+WORKDIR /var/lib/postgresql
+
+COPY docker-upgrade /usr/local/bin/
+
+ENTRYPOINT ["docker-upgrade"]
+
+# recommended: --link
+CMD ["pg_upgrade"]
